@@ -4,32 +4,32 @@
 	"values": [
 		{
 			"key": "serviceUrl",
-			"value": "",
+			"value": "http://localhost:8080",
 			"enabled": true
 		},
 		{
 			"key": "identityProviderUrl",
-			"value": "",
+			"value": "https://dev-r6rulu3m7tph7f63.us.auth0.com",
 			"enabled": true
 		},
 		{
 			"key": "username",
-			"value": "",
+			"value": "user",
 			"enabled": true
 		},
 		{
 			"key": "password",
-			"value": "",
+			"value": "KfCsPCMeXDjfB2S",
 			"enabled": true
 		},
 		{
 			"key": "clientId",
-			"value": "",
+			"value": "cRvxa4PfI6aJTiuOgJoY44qjsj9JFjxx",
 			"enabled": true
 		},
 		{
 			"key": "clientSecret",
-			"value": "",
+			"value": "4yejzOesJYPF-K9P-TIh93w5V4ki0quOIIRuc2MI9WgdUDNCGPj_r6YciYKwjVgg",
 			"enabled": true
 		}
 	],
