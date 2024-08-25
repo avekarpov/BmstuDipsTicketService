@@ -1,4 +1,5 @@
 version: "3"
+w
 services:
     postgres:
         image: postgres:13
@@ -9,7 +10,7 @@ services:
             POSTGRES_PASSWORD: program_password
         volumes:
             - postgresql:/var/lib/postgresql
-            - ./postgres/:/docker-entrypoint-initdb.d/
+            - ./postgres:/docker-entrypoint-initdb.d
         ports:
             - 5432:5432
         networks:
@@ -23,12 +24,19 @@ services:
         environment:
             SERVICE_HOST: gateway
             SERVICE_PORT: 8080
+
             FLIGHT_SERVICE_HOST: flight_service
             FLIGHT_SERVICE_PORT: 8060
+
             TICKET_SERVICE_HOST: ticket_serivce
             TICKET_SERVICE_PORT: 8070
+
             BONUS_SERVICE_HOST: bonus_service
             BONUS_SERVICE_PORT: 8050
+        
+            OIDC_HOST: keycloak
+            OIDC_PORT: 8030
+            OIDC_CLIENT_SECRET: toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8
         ports:
             - 8080:8080
         networks:
@@ -42,7 +50,10 @@ services:
         environment:
             SERVICE_HOST: flight_service
             SERVICE_PORT: 8060
+
             DB_HOST: postgres
+        depends_on:
+            - postgres
         ports:
             - 8060:8060
         networks:
@@ -56,11 +67,20 @@ services:
         environment:
             SERVICE_HOST: ticket_serivce
             SERVICE_PORT: 8070
+
             FLIGHT_SERVICE_HOST: gateway
             FLIGHT_SERVICE_PORT: 8080
+
             BONUS_SERVICE_HOST: gateway
             BONUS_SERVICE_PORT: 8080
+
             DB_HOST: postgres
+
+            OIDC_HOST: keycloak
+            OIDC_PORT: 8030
+            OIDC_CLIENT_SECRET: toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8
+        depends_on:
+            - postgres
         ports:
             - 8070:8070
         networks:
@@ -74,9 +94,42 @@ services:
         environment:
             SERVICE_HOST: bonus_service
             SERVICE_PORT: 8050
+
             DB_HOST: postgres
+
+            OIDC_HOST: keycloak
+            OIDC_PORT: 8030
+            OIDC_CLIENT_SECRET: toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8
+        depends_on:
+            - postgres
         ports:
             - 8050:8050
+        networks:
+            - internal
+    
+    keycloak:
+        image: quay.io/keycloak/keycloak
+        container_name: keycloak
+        restart: always
+        environment:
+            KEYCLOAK_ADMIN: admin
+            KEYCLOAK_ADMIN_PASSWORD: admin
+
+            KC_HOSTNAME: localhost
+            KC_HTTP_PORT: 8030
+            KC_HTTP_ENABLED: true
+
+            KEYCLOAK_FRONTEND_URL: http://localhost:8030
+
+            KC_DB: postgres
+            KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+            KC_DB_USERNAME: program
+            KC_DB_PASSWORD: program_password
+        command: start-dev
+        depends_on:
+            - postgres
+        ports:
+            - 8030:8030
         networks:
             - internal
 

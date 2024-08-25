@@ -58,3 +58,6 @@ CREATE TABLE privilege_history
     balance_diff   INT         NOT NULL,
     operation_type VARCHAR(20) NOT NULL CHECK (operation_type IN ('FILL_IN_BALANCE', 'DEBIT_THE_ACCOUNT'))
 );
+
+CREATE DATABASE keycloak;
+\c keycloak;
