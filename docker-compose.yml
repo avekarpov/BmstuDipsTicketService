@@ -1,5 +1,5 @@
 version: "3"
-w
+
 services:
     postgres:
         image: postgres:13

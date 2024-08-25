@@ -1,16 +1,16 @@
 class ErrorBase(BaseException):
     def __init__(self, message, code):
-        self.message = message
+        self.message = message if type(message) is dict else {'message': message}
         self.code = code 
 
 
 class UserError(ErrorBase):
-    def __init__(self, message='Bad request', code=400):
+    def __init__(self, message='bad request', code=400):
         super().__init__(message, code)
 
 
 class ServerError(ErrorBase):
-    def __init__(self, message='Internal error', code=500):
+    def __init__(self, message='internal error', code=500):
         super().__init__(message, code)
 
 

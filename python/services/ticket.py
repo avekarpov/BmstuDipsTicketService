@@ -1,6 +1,6 @@
 import logging
 
-from base import ServerBaseWithAuth0
+from base import ServerBaseWithKeycloak
 from base import DbConnectorBase
 
 from flask import request
@@ -97,7 +97,7 @@ class TicketDbConnector(DbConnectorBase):
         self._connection.commit()
 
 
-class TicketService(ServerBaseWithAuth0):
+class TicketService(ServerBaseWithKeycloak):
     def __init__(
         self, 
         host, 
@@ -107,14 +107,15 @@ class TicketService(ServerBaseWithAuth0):
         flight_service_port,
         bonus_service_host,
         bonus_service_port,
-        authorize_service_api_key,
-        authorize_service_secret_key,
-        authorize_service_url
+        keycloak_host,
+        keycloak_port,
+        keycloak_client_id,
+        keycloak_client_secret
     ):
         super().__init__(
-            authorize_service_api_key, 
-            authorize_service_secret_key, 
-            authorize_service_url, 
+            f'http://{keycloak_host}:{keycloak_port}',
+            keycloak_client_id,
+            keycloak_client_secret,
             'TicketService', 
             host, 
             port, 
@@ -127,13 +128,13 @@ class TicketService(ServerBaseWithAuth0):
     # API requests handlers
     ####################################################################################################################
 
-    @ServerBaseWithAuth0.route(path='/api/v1/tickets', methods=['GET', 'POST'])
+    @ServerBaseWithKeycloak.route(path='/api/v1/tickets', methods=['GET', 'POST'])
     def _api_v1_tickets(self):
         method = request.method
 
         if method == 'GET':
             token = self._get_user_token(request)
-            username = self._get_username(token)
+            username = self._get_username_by(token)
 
             table = self._db_connector.get_user_tickets(username)
             
@@ -159,7 +160,7 @@ class TicketService(ServerBaseWithAuth0):
 
         if method == 'POST':
             token = self._get_user_token(request)
-            username = self._get_username(token)
+            username = self._get_username_by(token)
 
             UserValue.get_from(request.headers, 'Content-Type').rule(rules.json_content)
             body = request.json
@@ -204,7 +205,7 @@ class TicketService(ServerBaseWithAuth0):
                 },
                 data=json.dumps({
                     'paidFromBalance': paid_from_balance,
-                    'datetime': ServerBaseWithAuth0.get_current_datetime(),
+                    'datetime': ServerBaseWithKeycloak.get_current_datetime(),
                     'ticketUid': uid,
                     'balanceDiff': balance_diff
                 })
@@ -236,7 +237,7 @@ class TicketService(ServerBaseWithAuth0):
 
         assert False, 'Invalid request method'
 
-    @ServerBaseWithAuth0.route(path='/api/v1/tickets/<string:uid>', methods=['GET', 'DELETE'])
+    @ServerBaseWithKeycloak.route(path='/api/v1/tickets/<string:uid>', methods=['GET', 'DELETE'])
     def _api_v1_tickets_aUid(self, uid):
         method = request.method
 
@@ -267,7 +268,7 @@ class TicketService(ServerBaseWithAuth0):
 
         if method == 'DELETE':
             token = self._get_user_token(request)
-            username = self._get_username(token)
+            username = self._get_username_by(token)
 
             ticket = self._db_connector.get_ticket_by_uid(uid)
 
@@ -293,13 +294,13 @@ class TicketService(ServerBaseWithAuth0):
 
         assert False, 'Invalid request method'
 
-    @ServerBaseWithAuth0.route(path='/api/v1/me', methods=['GET'])    
+    @ServerBaseWithKeycloak.route(path='/api/v1/me', methods=['GET'])    
     def _api_v1_me(self):
         method = request.method
 
         if method == 'GET':
-            token = self._get_user_token(request)
-            username = self._get_username(token)
+            token = self._get_user_token_from(request)
+            username = self._get_username_by(token)
 
             privilege = requests.request('GET', f'{self._bonus_service_url}/api/v1/privilege', headers={'Authorization': f'Bearer {token}'}).json()
             if 'error' in privilege.keys():
@@ -358,6 +359,10 @@ if __name__ == '__main__':
     parser.add_argument('--db-user', type=str, required=True)
     parser.add_argument('--db-password', type=str, required=True)
     parser.add_argument('--db-sslmode', type=str, default='disable')
+    parser.add_argument('--oidc-host', type=str, default='localhost')
+    parser.add_argument('--oidc-port', type=int, default=8030)
+    parser.add_argument('--oidc-client-id', type=str, default='ticket-service')
+    parser.add_argument('--oidc-client-secret', type=str, required=True)
     parser.add_argument('--debug', action='store_true')
 
     cmd_args = parser.parse_args()
@@ -382,9 +387,10 @@ if __name__ == '__main__':
         cmd_args.flight_service_port,
         cmd_args.bonus_service_host,
         cmd_args.bonus_service_port,
-        'cRvxa4PfI6aJTiuOgJoY44qjsj9JFjxx',
-        '4yejzOesJYPF-K9P-TIh93w5V4ki0quOIIRuc2MI9WgdUDNCGPj_r6YciYKwjVgg',
-        'dev-r6rulu3m7tph7f63.us.auth0.com'
+        cmd_args.oidc_host,
+        cmd_args.oidc_port,
+        cmd_args.oidc_client_id,
+        cmd_args.oidc_client_secret
     )
 
     service.run(cmd_args.debug)

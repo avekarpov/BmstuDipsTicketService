@@ -5,7 +5,7 @@
     [
         {
             "name": "flight service",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/python/services",
             "program": "flight.py",
@@ -22,7 +22,7 @@
         },
         {
             "name": "ticket service",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/python/services",
             "program": "ticket.py",
@@ -34,14 +34,15 @@
                 "--db-user", "program",
                 "--db-password", "program_password",
                 "--db", "tickets",
-                "--debug"
+                "--debug",
+                "--oidc-client-secret", "toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8"
             ],
             "justMyCode": false,
             "consoleTitle": "Ticket service"
         },
         {
             "name": "bonus service",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/python/services",
             "program": "bonus.py",
@@ -58,14 +59,15 @@
         },
         {
             "name": "gateway",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/python/services",
             "program": "gateway.py",
             "justMyCode": false,
             "args":
             [
-                "--debug"
+                "--debug",
+                "--oidc-client-secret", "toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8"
             ],
             "consoleTitle": "Gateway"
         }

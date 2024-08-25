@@ -1,7 +1,5 @@
 import errors
 
-from flask import request
-
 
 class Value:
     @staticmethod

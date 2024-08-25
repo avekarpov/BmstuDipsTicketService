@@ -1,20 +1,18 @@
 from flask import Flask
 from flask import make_response
 
-import requests
-
 import logging
 
 import psycopg2
 
-from errors import UserError
+from errors import UserError, ServerError
 from getters import ServerValue, UserValue
-import rules
 
 from datetime import datetime
 import time
 
-from jose import jwt
+from keycloak import KeycloakOpenID
+from keycloak.keycloak_openid import jwt
 
 class DbConnectorBase:
     def __init__(self, name, host, port, database, user, password, sslmode):
@@ -44,6 +42,8 @@ class DbConnectorBase:
                     time.sleep(reconnecting_delay_s)
         
         raise RuntimeError('Connection to database failed')
+
+
 class ServiceBase:
     def __init__(self, name, host, port, db_connector:DbConnectorBase=None):
         self._service_name = name
@@ -122,10 +122,21 @@ class ServiceBase:
 
                 try:
                     return func(self=self, *args, **kwargs)
-                
+
                 except UserError as error:
                     error.message.update({'error': 'bad request'})
+
                     return make_response(error.message, error.code)
+
+                except ServerError as error:
+                    self._logger.error(f'Server internal error: {error.message["message"]} with code {error.code}')
+
+                    return make_response('internal error', error.code)
+
+                except Exception as error:
+                    self._logger.error(f'Unknown internal error: {error}')
+                    
+                    return make_response('internal error', 500)
 
             setattr(wrapper, 'path', path)
             setattr(wrapper, 'methods', methods)
@@ -136,33 +147,31 @@ class ServiceBase:
         return decorate
 
 
-class AuthorizeServiceInfo:
-    def __init__(self, api_key, secret_key, url):
-        self.api_key = api_key
-        self.secret_key = secret_key
-        self.url = f'https://{url}'
-
-
-class ServerBaseWithAuth0(ServiceBase):
+class ServerBaseWithKeycloak(ServiceBase):
+    realm_name='master'
+    
     def __init__(
         self,
-        authorize_service_api_key, 
-        authorize_service_secret_key, 
-        authorize_service_url,
+        keycloak_url,
+        keycloak_client_id,
+        keycloak_client_secret,
         *args,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
-
-        self._authorize_service_info = AuthorizeServiceInfo(
-            authorize_service_api_key, 
-            authorize_service_secret_key, 
-            authorize_service_url
+        
+        self._keycloak_openid = KeycloakOpenID(
+            server_url=keycloak_url,
+            client_id=keycloak_client_id,
+            client_secret_key=keycloak_client_secret,
+            realm_name=self.realm_name
         )
-    
-    def _get_user_token(self, request):
-        token = UserValue.get_from(request.headers, 'Authorization', code=401).value
-        token = token.split()
+
+    def _get_user_token_by(self, username, password):
+        return ServerValue.get_from(self._keycloak_openid.token(username=username, password=password), 'access_token').value
+
+    def _get_user_token_from(self, request):
+        token = UserValue.get_from(request.headers, 'Authorization', code=401).value.split()
 
         if len(token) > 1:
             token = token[1]
@@ -173,61 +182,26 @@ class ServerBaseWithAuth0(ServiceBase):
 
         return token
 
-    def _get_username(self, token):
-        response = requests.request(
-            'GET',
-            f'{self._authorize_service_info.url}/userinfo',
-            headers={
-                'Authorization': f'Bearer {token}'
-            }
-        )
-
-        # ServerValue.get_from(response.headers, 'Content-Type').rule(rules.json_content)
-        return ServerValue.get_from(response.json(), 'nickname').value
-
-    def _validate_token(self, token):
-        rsa_key = None
-
+    def _get_username_by(self, token):
         try:
-            jwks = requests.request('GET', f'{self._authorize_service_info.url}/.well-known/jwks.json').json()
-            unverified_header = jwt.get_unverified_header(token)
-
-            for key in jwks['keys']:
-                if key['kid'] == unverified_header['kid']:
-                    rsa_key = {
-                        "kty": key["kty"],
-                        "kid": key["kid"],
-                        "use": key["use"],
-                        "n": key["n"],
-                        "e": key["e"]
-                    }
-
-                    break
+            return ServerValue.get_from(self._keycloak_openid.userinfo(token), 'preferred_username').value
 
         except Exception as error:
-            raise UserError(
-                    {'message': f'invalid header, {error}'}, 401
-                )
+            self._logger.error(f'Failed get username with error: {error}')
 
-        if rsa_key is not None:
-            try:
-                return jwt.decode(
-                    token,
-                    rsa_key,
-                    algorithms=['RS256'],
-                    audience=f'{self._authorize_service_info.url}/api/v2/',
-                    issuer=f'{self._authorize_service_info.url}/'
-                )
+            raise UserError('invalid token', 401)
 
-            except jwt.ExpiredSignatureError:
-                raise UserError(
-                    {'message': 'token expired'}, 401
-                )
-            except Exception as error:
-                raise UserError(
-                    {'message': f'invalid header, {error}'}, 401
-                )
-        
-        raise UserError(
-            {'message': 'invalid header'}, 401
-        )
+    def _validate_token(self, token):
+        def raise_invalid_token(error, message='invalid token'):
+            self._logger.error(f'Failed decode token with error: {error}')
+            
+            raise UserError(message, 401)
+
+        try:
+            self._keycloak_openid.decode_token(token)
+
+        except jwt.JWTExpired as error:
+            raise_invalid_token(error, 'token experid')
+
+        except Exception as error:
+            raise_invalid_token(error)

@@ -1,7 +1,7 @@
 import logging
 from operator import le
 
-from base import ServerBaseWithAuth0
+from base import ServerBaseWithKeycloak
 from base import DbConnectorBase
 
 import tools
@@ -138,18 +138,21 @@ class BonusDbConnector(DbConnectorBase):
             for row in table
         ]
 
-class BonusService(ServerBaseWithAuth0):
+class BonusService(ServerBaseWithKeycloak):
     def __init__(
             self, 
             host, 
             port, 
             db_connector,
-            authorize_service_api_key, authorize_service_secret_key, authorize_service_url
+            keycloak_host,
+            keycloak_port,
+            keycloak_client_id,
+            keycloak_client_secret,
         ):
         super().__init__(
-            authorize_service_api_key, 
-            authorize_service_secret_key, 
-            authorize_service_url, 
+            f'http://{keycloak_host}:{keycloak_port}',
+            keycloak_client_id,
+            keycloak_client_secret,
             'BounsService', 
             host, 
             port, 
@@ -159,12 +162,12 @@ class BonusService(ServerBaseWithAuth0):
     # API requests handlers
     ####################################################################################################################
 
-    @ServerBaseWithAuth0.route(path='/api/v1/privilege', methods=['GET'])
+    @ServerBaseWithKeycloak.route(path='/api/v1/privilege', methods=['GET'])
     def _api_v1_privilege(self):
         method = request.method
 
         if method == 'GET':
-            username = self._get_username(self._get_user_token(request))
+            username = self._get_username_by(self._get_user_token_from(request))
 
             user_privilege = self._db_connector.get_user_privilege(username)
 
@@ -193,12 +196,12 @@ class BonusService(ServerBaseWithAuth0):
 
         assert False, 'Invalid request method'
 
-    @ServerBaseWithAuth0.route(path='/api/v1/privilege/<string:ticket_uid>', methods=['POST', 'DELETE'])
+    @ServerBaseWithKeycloak.route(path='/api/v1/privilege/<string:ticket_uid>', methods=['POST', 'DELETE'])
     def _api_v1_privilege_aUid(self, ticket_uid):
         method = request.method
 
         if method == 'POST':
-            username = self._get_username(self._get_user_token(request))
+            username = self._get_username_by(self._get_user_token_from(request))
 
             user_privilege = self._db_connector.get_user_privilege(username)
 
@@ -230,7 +233,7 @@ class BonusService(ServerBaseWithAuth0):
             )
         
         if method == 'DELETE':
-            username = self._get_username(self._get_user_token(request))
+            username = self._get_username_by(self._get_user_token_from(request))
 
             user_privilege = self._db_connector.get_user_privilege(username)
 
@@ -245,7 +248,7 @@ class BonusService(ServerBaseWithAuth0):
             assert len(privilege_history) == 1
             privilege_history = privilege_history[0]
 
-            datetime = ServerBaseWithAuth0.get_current_datetime()
+            datetime = ServerBaseWithKeycloak.get_current_datetime()
 
             if privilege_history['operation_type'] == 'FILL_IN_BALANCE':
                 balance_diff = min(user_privilege['balance'], privilege_history['balance_diff'])
@@ -278,6 +281,10 @@ if __name__ == '__main__':
     parser.add_argument('--db-user', type=str, required=True)
     parser.add_argument('--db-password', type=str, required=True)
     parser.add_argument('--db-sslmode', type=str, default='disable')
+    parser.add_argument('--oidc-host', type=str, default='localhost')
+    parser.add_argument('--oidc-port', type=int, default=8030)
+    parser.add_argument('--oidc-client-id', type=str, default='ticket-service')
+    parser.add_argument('--oidc-client-secret', type=str, required=True)
     parser.add_argument('--debug', action='store_true')
 
     cmd_args = parser.parse_args()
@@ -298,9 +305,10 @@ if __name__ == '__main__':
             cmd_args.db_password,
             cmd_args.db_sslmode
         ),
-        'cRvxa4PfI6aJTiuOgJoY44qjsj9JFjxx',
-        '4yejzOesJYPF-K9P-TIh93w5V4ki0quOIIRuc2MI9WgdUDNCGPj_r6YciYKwjVgg',
-        'dev-r6rulu3m7tph7f63.us.auth0.com'
+        cmd_args.oidc_host,
+        cmd_args.oidc_port,
+        cmd_args.oidc_client_id,
+        cmd_args.oidc_client_secret,
     )
 
     service.run(cmd_args.debug)

@@ -1,13 +1,5 @@
 FROM python
 
-ENV SERVICE_HOST localhost
-ENV SERVICE_PORT 8050
-ENV DB_HOST localhost
-ENV DB_PORT 5432
-ENV DB privileges
-ENV DB_USER program
-ENV DB_PASSWORD program_password
-
 WORKDIR /app
 
 COPY python/requirements.txt python/requirements.txt
@@ -16,4 +8,29 @@ RUN pip install --no-cache-dir -r python/requirements.txt
 
 COPY python/services/ python/
 
-CMD [ "sh", "-c", "python python/bonus.py --host $SERVICE_HOST --port $SERVICE_PORT --db-host $DB_HOST --db-port $DB_PORT --db $DB --db-user $DB_USER --db-password $DB_PASSWORD" ]
+ENV SERVICE_HOST localhost
+ENV SERVICE_PORT 8050
+ENV DB_HOST localhost
+ENV DB_PORT 5432
+ENV DB privileges
+ENV DB_USER program
+ENV DB_PASSWORD program_password
+ENV OIDC_HOST localhost
+ENV OIDC_PORT 8030
+ENV OIDC_CLIENT_ID ticket-service
+
+CMD [ \
+    "sh", "-c", \
+    "python python/bonus.py \
+        --host $SERVICE_HOST \
+        --port $SERVICE_PORT \
+        --db-host $DB_HOST \
+        --db-port $DB_PORT \
+        --db $DB \
+        --db-user $DB_USER \
+        --db-password $DB_PASSWORD \
+        --oidc-host $OIDC_HOST \
+        --oidc-port $OIDC_PORT \
+        --oidc-client-id $OIDC_CLIENT_ID \ 
+        --oidc-client-secret $OIDC_CLIENT_SECRET" \
+    ]

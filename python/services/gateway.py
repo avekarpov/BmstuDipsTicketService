@@ -1,20 +1,21 @@
 import logging
 
-from base import ServerBaseWithAuth0
+from base import ServerBaseWithKeycloak
+from getters import UserValue
+from errors import UserError
+import tools
 
 import requests
 
 from flask import request as flask_request
 from flask import make_response
 
-import tools
-
 import argparse
 
 from time import time
 
-from getters import UserValue
-import rules
+from keycloak import KeycloakAdmin
+from keycloak import KeycloakPostError
 
 class ServiceInfo:
     def __init__(self, url):
@@ -26,7 +27,7 @@ class ServiceInfo:
 ALL_METHODS = ['GET', 'POST', 'DELETE']
 
 
-class Gateway(ServerBaseWithAuth0):
+class Gateway(ServerBaseWithKeycloak):
     def __init__(
         self, 
         host, port, 
@@ -34,12 +35,20 @@ class Gateway(ServerBaseWithAuth0):
         ticket_service_host, ticket_service_port,
         bonus_service_host, bonus_service_port,
         valid_error_level, wait_before_retry,
-        authorize_service_api_key, authorize_service_secret_key, authorize_service_url
+        keycloak_host,
+        keycloak_port,
+        keycloak_client_id,
+        keycloak_client_secret,
+        keycloak_admin_username,
+        keycloak_admin_password,
+        authorization_required=True # enable authorization check
     ):
+        keycloak_url = f'http://{keycloak_host}:{keycloak_port}'
+        
         super().__init__(
-            authorize_service_api_key, 
-            authorize_service_secret_key, 
-            authorize_service_url, 
+            keycloak_url,
+            keycloak_client_id,
+            keycloak_client_secret,
             'Gateway', 
             host,
             port
@@ -52,15 +61,24 @@ class Gateway(ServerBaseWithAuth0):
         self._valid_error_level = valid_error_level
         self._wait_before_retry = wait_before_retry
 
+        self._keycloak_admin = KeycloakAdmin(
+            server_url=keycloak_url,
+            username=keycloak_admin_username,
+            password=keycloak_admin_password,
+            realm_name='master'
+        )
+
+        self._authorization_required = authorization_required
+
     ################################################################################################
 
-    @ServerBaseWithAuth0.route(path='/api/v1/flights', methods=ALL_METHODS)
+    @ServerBaseWithKeycloak.route(path='/api/v1/flights', methods=ALL_METHODS)
     def _flight(self):
         return self._resend(
             self._flight_service_info, f'/api/v1/flights', flask_request
         )
 
-    @ServerBaseWithAuth0.route(path='/api/v1/flights/<path:path>', methods=ALL_METHODS)
+    @ServerBaseWithKeycloak.route(path='/api/v1/flights/<path:path>', methods=ALL_METHODS)
     def _flight_aPath(self, path):
         return self._resend(
             self._flight_service_info, f'/api/v1/flights/{path}', flask_request
@@ -68,13 +86,13 @@ class Gateway(ServerBaseWithAuth0):
     
     ################################################################################################
     
-    @ServerBaseWithAuth0.route(path='/api/v1/privilege', methods=ALL_METHODS)
+    @ServerBaseWithKeycloak.route(path='/api/v1/privilege', methods=ALL_METHODS)
     def _privilege(self):
         return self._resend(
             self._bonus_service_info, f'/api/v1/privilege', flask_request
         )
 
-    @ServerBaseWithAuth0.route(path='/api/v1/privilege/<path:path>', methods=ALL_METHODS)
+    @ServerBaseWithKeycloak.route(path='/api/v1/privilege/<path:path>', methods=ALL_METHODS)
     def _privilege_aPath(self, path):
         return self._resend(
             self._bonus_service_info, f'/api/v1/privilege/{path}', flask_request
@@ -82,19 +100,19 @@ class Gateway(ServerBaseWithAuth0):
         
     ################################################################################################
 
-    @ServerBaseWithAuth0.route(path='/api/v1/tickets', methods=ALL_METHODS)
+    @ServerBaseWithKeycloak.route(path='/api/v1/tickets', methods=ALL_METHODS)
     def _tickets(self):
         return self._resend(
             self._ticket_service_info, f'/api/v1/tickets', flask_request
         )
 
-    @ServerBaseWithAuth0.route(path='/api/v1/tickets/<path:path>', methods=ALL_METHODS)
+    @ServerBaseWithKeycloak.route(path='/api/v1/tickets/<path:path>', methods=ALL_METHODS)
     def _tickets_aPath(self, path):
         return self._resend(
             self._ticket_service_info, f'/api/v1/tickets/{path}', flask_request
         )   
     
-    @ServerBaseWithAuth0.route(path='/api/v1/me', methods=ALL_METHODS)
+    @ServerBaseWithKeycloak.route(path='/api/v1/me', methods=ALL_METHODS)
     def _me(self):
         return self._resend(
             self._ticket_service_info, f'/api/v1/me', flask_request
@@ -102,43 +120,50 @@ class Gateway(ServerBaseWithAuth0):
 
     ################################################################################################
 
-    @ServerBaseWithAuth0.route(path='/api/v1/authorize', methods=['POST'])
+    @ServerBaseWithKeycloak.route(path='/api/v1/authorize', methods=['POST'])
     def _authorize(self):
         request = flask_request
 
-        UserValue.get_from(request.headers, 'Content-Type').rule(rules.json_content)
-        username = UserValue.get_from(request.json, 'username').expected(str).value
-        password = UserValue.get_from(request.json, 'password').expected(str).value
+        with UserValue.ErrorChain() as error_chain:
+            username = UserValue.get_from(request.json, 'username', error_chain).expected(str).value
+            password = UserValue.get_from(request.json, 'password', error_chain).expected(str).value
 
-        response = requests.request(
-            'POST',
-            f'{self._authorize_service_info.url}/oauth/token',
-            headers={'Content-Type': 'application/x-www-form-urlencoded'},
-            data={
-                'client_id': self._authorize_service_info.api_key,
-                'client_secret': self._authorize_service_info.secret_key,
-                'grant_type': 'password',
-                'username': username,
-                'password': password,
-                'audience': f'{self._authorize_service_info.url}/api/v2/',
-                'scope': 'openid'
-            }
-        )
-    
-        if tools.is_json_content(response):
-            self._validate_token(response.json()['access_token'])
-            return make_response(response.json(), response.status_code)
+        return make_response(self._get_user_token_by(username, password), 200)
 
-        return make_response(response.text, response.status_code)
+    @ServerBaseWithKeycloak.route(path='/api/v1/register', methods=['POST'])
+    def _register(self):
+        request = flask_request
 
-    @ServerBaseWithAuth0.route(path='/api/v1/callback', methods=ALL_METHODS)
+        with UserValue.ErrorChain() as error_chain:
+            username = UserValue.get_from(request.json, 'username', error_chain).expected(str).value
+            password = UserValue.get_from(request.json, 'password', error_chain).expected(str).value
+
+        try:
+            self._keycloak_admin.create_user(
+                {
+                    'username': username,
+                    'enabled': True,
+                    'credentials': [{'value': password, 'type': 'password'}]
+                }
+            )
+
+        except KeycloakPostError as error:
+            if error.response_code == 409:
+                raise UserError('already used username', 409)
+        
+        return make_response(self._get_user_token_by(username, password), 200)
+
+    @ServerBaseWithKeycloak.route(path='/api/v1/callback', methods=ALL_METHODS)
     def _callback(self):
         return make_response('', 200)
 
     ################################################################################################
 
     def _resend(self, service_info, path, request):
-        self._get_user_token(request)
+        if self._authorization_required:
+            self._get_user_token_from(request)
+        else:
+            self._logger.warn("Authorization check disabled")
 
         try:
             if len(service_info.queue) != 0:
@@ -166,7 +191,6 @@ class Gateway(ServerBaseWithAuth0):
                 return make_response('', 200)
             
         return make_response('Internal server error', 500)
-        
 
     def _request(self, service_info, path, request):
         method = request.method
@@ -181,19 +205,16 @@ class Gateway(ServerBaseWithAuth0):
                 data=request.data
             )
 
-            # if 500 <= response.status_code <= 599:
-            #     raise RuntimeError('Get 500 code from service')
-
-            self._logger.debug(f'Got response from service, reset error level from {service_info.error_level} to 0')
             service_info.error_level = 0
+            self._logger.debug(f'Got response from service, reset error level to 0')
 
             if tools.is_json_content(response):
                 return make_response(response.json(), response.status_code)
 
             return make_response(response.text, response.status_code)
 
-        except Exception as exception:
-            self._logger.error(f'Failed to send request, error: {exception}')
+        except Exception as error:
+            self._logger.error(f'Failed to send request, error: {error}')
 
             service_info.error_level = min(service_info.error_level, self._valid_error_level) + 1
             self._logger.debug(f'Error level: {service_info.error_level}')
@@ -233,6 +254,8 @@ class Gateway(ServerBaseWithAuth0):
         self._register_route('_me')
         self._register_route('_authorize')
         self._register_route('_callback')
+        self._register_route('_register')
+
 
 if __name__ == '__main__':
     tools.set_basic_logging_config()
@@ -248,7 +271,12 @@ if __name__ == '__main__':
     parser.add_argument('--ticket-service-port', type=int, default=8070)
     parser.add_argument('--valid-error-level', type=int, default=10)
     parser.add_argument('--wait-before-retry', type=int, default=10)
+    parser.add_argument('--oidc-host', type=str, default='localhost')
+    parser.add_argument('--oidc-port', type=int, default=8030)
+    parser.add_argument('--oidc-client-id', type=str, default='ticket-service')
+    parser.add_argument('--oidc-client-secret', type=str, required=True)
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--no-authorization', action='store_true')
 
     cmd_args = parser.parse_args()
 
@@ -256,6 +284,9 @@ if __name__ == '__main__':
         tools.set_basic_logging_config(level=logging.DEBUG)
     else:
         tools.set_basic_logging_config(level=logging.INFO)
+        
+    if cmd_args.no_authorization and not cmd_args.debug:
+        raise RuntimeError('"no-authorization" option could be enabled only with "debug" option')
 
     gateway = Gateway(
         cmd_args.host,
@@ -268,10 +299,13 @@ if __name__ == '__main__':
         cmd_args.bonus_service_port,
         cmd_args.valid_error_level,
         cmd_args.wait_before_retry,
-        'cRvxa4PfI6aJTiuOgJoY44qjsj9JFjxx',
-        '4yejzOesJYPF-K9P-TIh93w5V4ki0quOIIRuc2MI9WgdUDNCGPj_r6YciYKwjVgg',
-        'dev-r6rulu3m7tph7f63.us.auth0.com'
-        
+        cmd_args.oidc_host,
+        cmd_args.oidc_port,
+        cmd_args.oidc_client_id,
+        cmd_args.oidc_client_secret,
+        'admin',
+        'admin',
+        not cmd_args.no_authorization
     )
 
     gateway.run(cmd_args.debug)
