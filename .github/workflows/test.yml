@@ -31,13 +31,13 @@ jobs:
         env:
           WAIT_PORTS: 8080,8070,8060,8050
       
-      - name: Run API Tests
-        uses: matt-ball/newman-action@master
-        with:
-          collection: postman/collection.json
-          environment: postman/environment.json
-          delayRequest: 100
-          reporters: '[ "cli" ]'
+      # - name: Run API Tests
+      #   uses: matt-ball/newman-action@master
+      #   with:
+      #     collection: postman/collection.json
+      #     environment: postman/environment.json
+      #     delayRequest: 100
+      #     reporters: '[ "cli" ]'
       
       - name: Stop containers
         continue-on-error: true

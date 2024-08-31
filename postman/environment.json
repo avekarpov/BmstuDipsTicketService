@@ -1,6 +1,6 @@
 {
 	"id": "acc90f86-88ad-444e-924e-6f48f6ee7711",
-	"name": "[rsoi][lab5] Flight Service",
+	"name": "Flight Service",
 	"values": [
 		{
 			"key": "serviceUrl",
@@ -9,27 +9,17 @@
 		},
 		{
 			"key": "identityProviderUrl",
-			"value": "https://dev-r6rulu3m7tph7f63.us.auth0.com",
+			"value": "http://localhost:8080",
 			"enabled": true
 		},
 		{
 			"key": "username",
-			"value": "user",
+			"value": "admin",
 			"enabled": true
 		},
 		{
 			"key": "password",
-			"value": "KfCsPCMeXDjfB2S",
-			"enabled": true
-		},
-		{
-			"key": "clientId",
-			"value": "cRvxa4PfI6aJTiuOgJoY44qjsj9JFjxx",
-			"enabled": true
-		},
-		{
-			"key": "clientSecret",
-			"value": "4yejzOesJYPF-K9P-TIh93w5V4ki0quOIIRuc2MI9WgdUDNCGPj_r6YciYKwjVgg",
+			"value": "admin",
 			"enabled": true
 		}
 	],

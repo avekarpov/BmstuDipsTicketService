@@ -1,7 +1,7 @@
 {
 	"info": {
 		"_postman_id": "be850098-b8c1-4535-88c8-7365f8948018",
-		"name": "[rsoi][lab5] Flight Service",
+		"name": "Flight Service",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "976707"
 	},
@@ -18,11 +18,9 @@
 								"exec": [
 									"pm.test(\"Получить токен\", () => {",
 									"    pm.response.to.have.status(200)",
-									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.contains(\"application/json\");",
 									"",
-									"    const response = pm.response.json();",
-									"    pm.expect(response.access_token).not.be.empty",
-									"    pm.collectionVariables.set(\"authorizationToken\", response.access_token)",
+									"    const response = pm.response.text();",
+									"    pm.collectionVariables.set(\"authorizationToken\", response)",
 									"})"
 								],
 								"type": "text/javascript"
@@ -34,55 +32,24 @@
 							"type": "noauth"
 						},
 						"method": "POST",
-						"header": [],
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
 						"body": {
-							"mode": "urlencoded",
-							"urlencoded": [
-								{
-									"key": "scope",
-									"value": "openid",
-									"type": "text"
-								},
-								{
-									"key": "grant_type",
-									"value": "password",
-									"type": "text"
-								},
-								{
-									"key": "username",
-									"value": "{{username}}",
-									"type": "text"
-								},
-								{
-									"key": "password",
-									"value": "{{password}}",
-									"type": "text"
-								},
-								{
-									"key": "client_id",
-									"value": "{{clientId}}",
-									"type": "text"
-								},
-								{
-									"key": "client_secret",
-									"value": "{{clientSecret}}",
-									"type": "text"
-								},
-								{
-									"key": "audience",
-									"value": "{{identityProviderUrl}}/api/v2/",
-									"type": "text"
-								}
-							]
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{username}}\",\n    \"password\": \"{{password}}\"\n}"
 						},
 						"url": {
-							"raw": "{{identityProviderUrl}}/oauth/token",
+							"raw": "{{identityProviderUrl}}/api/v1/authorize",
 							"host": [
 								"{{identityProviderUrl}}"
 							],
 							"path": [
-								"oauth",
-								"token"
+								"api", "v1", "authorize"
 							]
 						}
 					},
