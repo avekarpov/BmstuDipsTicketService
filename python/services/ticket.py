@@ -133,7 +133,7 @@ class TicketService(ServerBaseWithKeycloak):
         method = request.method
 
         if method == 'GET':
-            token = self._get_user_token(request)
+            token = self._get_user_token_from(request)
             username = self._get_username_by(token)
 
             table = self._db_connector.get_user_tickets(username)
@@ -159,7 +159,7 @@ class TicketService(ServerBaseWithKeycloak):
             return make_response(meesage, 200)
 
         if method == 'POST':
-            token = self._get_user_token(request)
+            token = self._get_user_token_from(request)
             username = self._get_username_by(token)
 
             UserValue.get_from(request.headers, 'Content-Type').rule(rules.json_content)
@@ -169,16 +169,24 @@ class TicketService(ServerBaseWithKeycloak):
                 flight_number = UserValue.get_from(body, 'flightNumber', error_chain).expected(str).value
                 price = UserValue.get_from(body, 'price', error_chain).expected(int).rule(rules.grater_zero).value
                 paid_from_balance = UserValue.get_from(body, 'paidFromBalance', error_chain).expected(bool).value
-
-            flight = requests.request('GET', f'{self._flight_service_url}/api/v1/flights/{flight_number}', headers={'Authorization': f'Bearer {token}'}).json()
-            if 'error' in flight.keys():
-                raise errors.ServerError(flight, 500)
+ 
+            flight = self._get_json_from(
+                requests.request(
+                    'GET', 
+                    f'{self._flight_service_url}/api/v1/flights/{flight_number}',
+                    headers={'Authorization': f'Bearer {token}'}
+                )
+            )
 
             price = ServerValue.get_from(flight, 'price').expected(int).rule(rules.grater_zero).value
 
-            privilege = requests.request('GET', f'{self._bonus_service_url}/api/v1/privilege', headers={'Authorization': f'Bearer {token}'}).json()
-            if 'error' in privilege.keys():
-                raise errors.ServerError(privilege, 500)
+            privilege = self._get_json_from(
+                requests.request(
+                    'GET', 
+                    f'{self._bonus_service_url}/api/v1/privilege',
+                    headers={'Authorization': f'Bearer {token}'}
+                )
+            )
 
             bonus_balance = ServerValue.get_from(privilege, 'balance').expected(int).rule(rules.greate_equal_zero).value
             
@@ -242,12 +250,12 @@ class TicketService(ServerBaseWithKeycloak):
         method = request.method
 
         if method == 'GET':
-            token = self._get_user_token(request)
+            token = self._get_user_token_from(request)
 
             ticket = self._db_connector.get_ticket_by_uid(uid)
 
             if ticket is None:
-                raise errors.UserError({'message': 'non existent ticket'}, 404)
+                raise errors.UserError('non existent ticket', 404)
 
             url_base = f'{self._flight_service_url}/api/v1/flights'
 
@@ -267,13 +275,13 @@ class TicketService(ServerBaseWithKeycloak):
             )
 
         if method == 'DELETE':
-            token = self._get_user_token(request)
+            token = self._get_user_token_from(request)
             username = self._get_username_by(token)
 
             ticket = self._db_connector.get_ticket_by_uid(uid)
 
             if ticket is None:
-                raise errors.UserError({'message': 'non existent ticket'}, 404)
+                raise errors.UserError('non existent ticket', 404)
 
             privilege = requests.request(
                 'DELETE',

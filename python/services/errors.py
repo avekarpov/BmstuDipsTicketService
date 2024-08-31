@@ -1,6 +1,12 @@
 class ErrorBase(BaseException):
     def __init__(self, message, code):
-        self.message = message if type(message) is dict else {'message': message}
+        if type(message) is dict:
+            if 'message' not in message.keys():
+                message['message'] = 'bad request'
+        else:
+            message = {'message': message}
+        
+        self.message = message 
         self.code = code 
 
 

@@ -52,7 +52,8 @@
                 "--db-user", "program",
                 "--db-password", "program_password",
                 "--db", "privileges",
-                "--debug"
+                "--debug",
+                "--oidc-client-secret", "toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8"
             ],
             "justMyCode": false,
             "consoleTitle": "Bonus service"
@@ -70,6 +71,20 @@
                 "--oidc-client-secret", "toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8"
             ],
             "consoleTitle": "Gateway"
+        },
+        {
+            "name": "client",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/python",
+            "program": "client.py",
+            "justMyCode": false,
+            "args":
+            [
+                "--user", "user",
+                "--password", "user"
+            ],
+            "consoleTitle": "Client"
         }
     ],
     "compounds":

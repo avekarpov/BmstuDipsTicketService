@@ -140,7 +140,7 @@ class FlightService(ServiceBase):
             flight = self._db_connector.get_flight_by_number(number)
 
             if flight is None:
-                raise errors.UserError({'message': 'non existent flight'}, 404)
+                raise errors.UserError('non existent flight', 404)
 
             return make_response(
                 {

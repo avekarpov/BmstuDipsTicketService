@@ -238,7 +238,7 @@ class BonusService(ServerBaseWithKeycloak):
             user_privilege = self._db_connector.get_user_privilege(username)
 
             if user_privilege is None:
-                raise errors.UserError({'message': 'non existed user'})
+                raise errors.UserError('non existed user')
 
             privilege_history = self._db_connector.get_privilege_history_by_ticket(ticket_uid)
 

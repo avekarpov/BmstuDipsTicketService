@@ -2,7 +2,7 @@ import logging
 
 from base import ServerBaseWithKeycloak
 from getters import UserValue
-from errors import UserError
+from errors import UserError, ServerError
 import tools
 
 import requests
@@ -15,7 +15,7 @@ import argparse
 from time import time
 
 from keycloak import KeycloakAdmin
-from keycloak import KeycloakPostError
+from keycloak import KeycloakPostError, KeycloakAuthenticationError
 
 class ServiceInfo:
     def __init__(self, url):
@@ -128,11 +128,28 @@ class Gateway(ServerBaseWithKeycloak):
             username = UserValue.get_from(request.json, 'username', error_chain).expected(str).value
             password = UserValue.get_from(request.json, 'password', error_chain).expected(str).value
 
-        return make_response(self._get_user_token_by(username, password), 200)
+        try:
+            token = self._get_user_token_by(username, password)
+        except KeycloakAuthenticationError as error:
+            if error.response_code == 401:
+                raise UserError('invalid user credentials', 401)
+
+        return make_response(token, 200)
 
     @ServerBaseWithKeycloak.route(path='/api/v1/register', methods=['POST'])
     def _register(self):
         request = flask_request
+
+        if self._authorization_required:
+            token = self._get_user_token_from(request)
+            username = self._get_username_by(token)
+
+            admins = [i['username'] for i in self._keycloak_admin.get_realm_role_members('admin')]
+            if username not in admins:
+                raise UserError('only admin user can register', 403)
+
+        else:
+            self._logger.warn("Authorization check disabled")
 
         with UserValue.ErrorChain() as error_chain:
             username = UserValue.get_from(request.json, 'username', error_chain).expected(str).value
@@ -144,13 +161,14 @@ class Gateway(ServerBaseWithKeycloak):
                     'username': username,
                     'enabled': True,
                     'credentials': [{'value': password, 'type': 'password'}]
-                }
+                },
+                exist_ok=False
             )
 
         except KeycloakPostError as error:
             if error.response_code == 409:
                 raise UserError('already used username', 409)
-        
+
         return make_response(self._get_user_token_by(username, password), 200)
 
     @ServerBaseWithKeycloak.route(path='/api/v1/callback', methods=ALL_METHODS)
@@ -190,7 +208,7 @@ class Gateway(ServerBaseWithKeycloak):
 
                 return make_response('', 200)
             
-        return make_response('Internal server error', 500)
+        raise ServerError()
 
     def _request(self, service_info, path, request):
         method = request.method

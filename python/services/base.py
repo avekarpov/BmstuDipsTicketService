@@ -124,19 +124,17 @@ class ServiceBase:
                     return func(self=self, *args, **kwargs)
 
                 except UserError as error:
-                    error.message.update({'error': 'bad request'})
-
                     return make_response(error.message, error.code)
 
                 except ServerError as error:
                     self._logger.error(f'Server internal error: {error.message["message"]} with code {error.code}')
 
-                    return make_response('internal error', error.code)
+                    return make_response({'message': 'internal error'}, error.code)
 
                 except Exception as error:
                     self._logger.error(f'Unknown internal error: {error}')
                     
-                    return make_response('internal error', 500)
+                    return make_response({'message': 'internal error'}, 500)
 
             setattr(wrapper, 'path', path)
             setattr(wrapper, 'methods', methods)
@@ -145,6 +143,16 @@ class ServiceBase:
             return wrapper
 
         return decorate
+
+    @staticmethod
+    def _get_json_from(response):
+        if 400 <= response.status_code <= 499:
+                raise UserError(response.json(), response.status_code)
+
+        if 500 <= response.status_code:
+            raise ServerError(response.json(), response.status_code)
+        
+        return response.json()
 
 
 class ServerBaseWithKeycloak(ServiceBase):

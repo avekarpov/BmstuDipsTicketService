@@ -3,3 +3,4 @@ argparse
 psycopg2-binary
 requests
 python-keycloak
+tabulate
