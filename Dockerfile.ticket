@@ -6,6 +6,11 @@ COPY python/requirements.txt python/requirements.txt
 
 RUN pip install --no-cache-dir -r python/requirements.txt
 
+RUN apt update
+RUN apt -y install jq
+
+COPY create_keycloak_client.sh .
+
 COPY python/services/ python/
 
 ENV SERVICE_HOST localhost
@@ -27,7 +32,8 @@ ENV KAFKA_PORT 29092
 
 CMD [ \
     "sh", "-c", \
-    "python python/ticket.py \
+    "OIDC_CLIENT_SECRET=$(./create_keycloak_client.sh http://$OIDC_HOST:$OIDC_PORT); \
+    python python/ticket.py \
         --host $SERVICE_HOST \
         --port $SERVICE_PORT \
         --flight-service-host $FLIGHT_SERVICE_HOST \

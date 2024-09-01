@@ -1,0 +1,8 @@
+name: other
+description: Helm Chart for all other sevices
+version: 0.0.1
+apiVersion: v1
+keywords:
+  - other
+sources:
+home:

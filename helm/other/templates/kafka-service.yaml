@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentry-kafka
+spec:
+  type: NodePort
+  ports:
+    - port: 29092
+  selector:
+    app: sentry-kafka

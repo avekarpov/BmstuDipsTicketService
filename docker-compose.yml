@@ -167,6 +167,8 @@ services:
             KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
             KC_DB_USERNAME: program
             KC_DB_PASSWORD: program_password
+
+            # KC_LOG_LEVEL: DEBUG
         command: start-dev
         depends_on:
             - postgres

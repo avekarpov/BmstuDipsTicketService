@@ -5,8 +5,12 @@ flight:
     image: avekarpov/ticketservice-flight
     env:
       DB_HOST: postgres
+
       SERVICE_HOST: 0.0.0.0
       SERVICE_PORT: 8060
+
+      KAFKA_HOST: sentry-kafka
+      KAFKA_PORT: 29092
 
 bonus:
   service:
@@ -15,8 +19,16 @@ bonus:
     image: avekarpov/ticketservice-bonus
     env:
       DB_HOST: postgres
+
       SERVICE_HOST: 0.0.0.0
       SERVICE_PORT: 8050
+
+      KAFKA_HOST: sentry-kafka
+      KAFKA_PORT: 29092
+
+      OIDC_HOST: keycloak
+      OIDC_PORT: 8030
+      OIDC_CLIENT_ID: ticket-service
 
 ticket:
   service:
@@ -25,15 +37,24 @@ ticket:
     image: avekarpov/ticketservice-ticket
     env:
       DB_HOST: postgres
+
       SERVICE_HOST: 0.0.0.0
       SERVICE_PORT: 8070
+
       BONUS_SERVICE_HOST: gateway.default.svc.cluster.local
       BONUS_SERVICE_PORT: 8080
       FLIGHT_SERVICE_HOST: gateway.default.svc.cluster.local
       FLIGHT_SERVICE_PORT: 8080
 
+      KAFKA_HOST: sentry-kafka
+      KAFKA_PORT: 29092
+    
+      OIDC_HOST: keycloak
+      OIDC_PORT: 8030
+      OIDC_CLIENT_ID: ticket-service
+
 gateway:
-   service:
+  service:
     type: NodePort
     port: 8080
     nodePort: 30000
@@ -41,9 +62,33 @@ gateway:
     env:
       SERVICE_HOST: 0.0.0.0
       SERVICE_PORT: 8080
+
       BONUS_SERVICE_HOST: bonus.default.svc.cluster.local
       BONUS_SERVICE_PORT: 8050
       FLIGHT_SERVICE_HOST: flight.default.svc.cluster.local
       FLIGHT_SERVICE_PORT: 8060
       TICKET_SERVICE_HOST: ticket.default.svc.cluster.local
       TICKET_SERVICE_PORT: 8070
+      STATS_SERVICE_HOST: stats.default.svc.cluster.local
+      STATS_SERVICE_PORT: 8040
+
+      KAFKA_HOST: sentry-kafka
+      KAFKA_PORT: 29092
+
+      OIDC_HOST: keycloak
+      OIDC_PORT: 8030
+      OIDC_CLIENT_ID: ticket-service
+
+stats:
+  service:
+    type: ClusterIP
+    port: 8040
+    image: avekarpov/ticketservice-stats
+    env:
+      DB_HOST: postgres
+
+      SERVICE_HOST: 0.0.0.0
+      SERVICE_PORT: 8040
+
+      KAFKA_HOST: sentry-kafka
+      KAFKA_PORT: 29092
