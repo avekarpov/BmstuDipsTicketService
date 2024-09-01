@@ -1,5 +1,4 @@
 import logging
-from operator import le
 
 from base import ServerBaseWithKeycloak
 from base import DbConnectorBase
@@ -14,6 +13,8 @@ from flask import make_response
 import argparse
 
 from getters import UserValue
+
+from kafka import KafkaProducer
 
 class BonusDbConnector(DbConnectorBase):
     def __init__(self, host, port, database, user, password, sslmode='disable'):
@@ -148,6 +149,7 @@ class BonusService(ServerBaseWithKeycloak):
             keycloak_port,
             keycloak_client_id,
             keycloak_client_secret,
+            kafka_producer
         ):
         super().__init__(
             f'http://{keycloak_host}:{keycloak_port}',
@@ -156,7 +158,8 @@ class BonusService(ServerBaseWithKeycloak):
             'BounsService', 
             host, 
             port, 
-            db_connector
+            db_connector,
+            kafka_producer
         )
 
     # API requests handlers
@@ -285,6 +288,8 @@ if __name__ == '__main__':
     parser.add_argument('--oidc-port', type=int, default=8030)
     parser.add_argument('--oidc-client-id', type=str, default='ticket-service')
     parser.add_argument('--oidc-client-secret', type=str, required=True)
+    parser.add_argument('--kafka-host', type=str, default='localhost')
+    parser.add_argument('--kafka-port', type=str, default=29092)
     parser.add_argument('--debug', action='store_true')
 
     cmd_args = parser.parse_args()
@@ -309,6 +314,7 @@ if __name__ == '__main__':
         cmd_args.oidc_port,
         cmd_args.oidc_client_id,
         cmd_args.oidc_client_secret,
+        KafkaProducer(bootstrap_servers=f'{cmd_args.kafka_host}:{cmd_args.kafka_port}'),
     )
 
     service.run(cmd_args.debug)

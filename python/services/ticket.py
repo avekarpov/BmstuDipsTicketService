@@ -19,6 +19,8 @@ import rules
 from getters import UserValue
 from getters import ServerValue
 
+from kafka import KafkaProducer
+
 class TicketDbConnector(DbConnectorBase):
     def __init__(self, host, port, database, user, password, sslmode='disable'):
         super().__init__('TicketDbConnector', host, port, database, user, password, sslmode)
@@ -74,7 +76,7 @@ class TicketDbConnector(DbConnectorBase):
     def add_user_ticket(self, user, uid, flight_number, price, status):
         query = tools.simplify_sql_query(
             f'INSERT INTO ticket(username, uid, flight_number, price, status) '
-            f'VALUES (\'{user}\', \'{uid}\', \'{flight_number}\', {price}, \'{status}\')'
+            f'VALUES(\'{user}\', \'{uid}\', \'{flight_number}\', {price}, \'{status}\')'
         )
 
         self._logger.debug(f'Execute query: {query}')
@@ -110,7 +112,8 @@ class TicketService(ServerBaseWithKeycloak):
         keycloak_host,
         keycloak_port,
         keycloak_client_id,
-        keycloak_client_secret
+        keycloak_client_secret,
+        kafka_producer
     ):
         super().__init__(
             f'http://{keycloak_host}:{keycloak_port}',
@@ -119,7 +122,8 @@ class TicketService(ServerBaseWithKeycloak):
             'TicketService', 
             host, 
             port, 
-            db_connector
+            db_connector,
+            kafka_producer
         )
 
         self._flight_service_url = f'http://{flight_service_host}:{flight_service_port}'
@@ -371,6 +375,8 @@ if __name__ == '__main__':
     parser.add_argument('--oidc-port', type=int, default=8030)
     parser.add_argument('--oidc-client-id', type=str, default='ticket-service')
     parser.add_argument('--oidc-client-secret', type=str, required=True)
+    parser.add_argument('--kafka-host', type=str, default='localhost')
+    parser.add_argument('--kafka-port', type=str, default=29092)
     parser.add_argument('--debug', action='store_true')
 
     cmd_args = parser.parse_args()
@@ -398,7 +404,8 @@ if __name__ == '__main__':
         cmd_args.oidc_host,
         cmd_args.oidc_port,
         cmd_args.oidc_client_id,
-        cmd_args.oidc_client_secret
+        cmd_args.oidc_client_secret,
+        KafkaProducer(bootstrap_servers=f'{cmd_args.kafka_host}:{cmd_args.kafka_port}'),
     )
 
     service.run(cmd_args.debug)

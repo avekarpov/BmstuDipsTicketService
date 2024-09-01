@@ -7,6 +7,7 @@ def simplify_sql_query(query):
 
 def set_basic_logging_config(level=logging.DEBUG):
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=level)
+    logging.getLogger().setLevel(level)
 
 
 def is_json_content(content):

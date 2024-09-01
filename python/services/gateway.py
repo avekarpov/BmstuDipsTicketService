@@ -17,6 +17,8 @@ from time import time
 from keycloak import KeycloakAdmin
 from keycloak import KeycloakPostError, KeycloakAuthenticationError
 
+from kafka import KafkaProducer
+
 class ServiceInfo:
     def __init__(self, url):
         self.url = url
@@ -34,6 +36,7 @@ class Gateway(ServerBaseWithKeycloak):
         flight_service_host, flight_service_port,
         ticket_service_host, ticket_service_port,
         bonus_service_host, bonus_service_port,
+        stats_service_host, stats_service_port,
         valid_error_level, wait_before_retry,
         keycloak_host,
         keycloak_port,
@@ -41,6 +44,7 @@ class Gateway(ServerBaseWithKeycloak):
         keycloak_client_secret,
         keycloak_admin_username,
         keycloak_admin_password,
+        kafka_producer,
         authorization_required=True # enable authorization check
     ):
         keycloak_url = f'http://{keycloak_host}:{keycloak_port}'
@@ -51,12 +55,14 @@ class Gateway(ServerBaseWithKeycloak):
             keycloak_client_secret,
             'Gateway', 
             host,
-            port
+            port,
+            kafka_producer=kafka_producer
         )
 
         self._flight_service_info = ServiceInfo(f'http://{flight_service_host}:{flight_service_port}')
         self._ticket_service_info = ServiceInfo(f'http://{ticket_service_host}:{ticket_service_port}')
         self._bonus_service_info = ServiceInfo(f'http://{bonus_service_host}:{bonus_service_port}')
+        self._stats_service_info = ServiceInfo(f'http://{stats_service_host}:{stats_service_port}')
 
         self._valid_error_level = valid_error_level
         self._wait_before_retry = wait_before_retry
@@ -117,6 +123,27 @@ class Gateway(ServerBaseWithKeycloak):
         return self._resend(
             self._ticket_service_info, f'/api/v1/me', flask_request
         )
+
+    ################################################################################################
+
+    @ServerBaseWithKeycloak.route(path='/api/v1/stats', methods=['GET'])
+    def _stats(self):
+        request = flask_request
+
+        if self._authorization_required:
+            token = self._get_user_token_from(request)
+            username = self._get_username_by(token)
+
+            admins = [i['username'] for i in self._keycloak_admin.get_realm_role_members('admin')]
+            if username not in admins:
+                raise UserError('only admin user can view stats', 403)
+
+        else:
+            self._logger.warn("Authorization check disabled")
+
+        return self._resend(
+            self._stats_service_info, f'/api/v1/stats', flask_request
+        )   
 
     ################################################################################################
 
@@ -273,6 +300,7 @@ class Gateway(ServerBaseWithKeycloak):
         self._register_route('_authorize')
         self._register_route('_callback')
         self._register_route('_register')
+        self._register_route('_stats')
 
 
 if __name__ == '__main__':
@@ -287,12 +315,16 @@ if __name__ == '__main__':
     parser.add_argument('--bonus-service-port', type=int, default=8050)
     parser.add_argument('--ticket-service-host', type=str, default='localhost')
     parser.add_argument('--ticket-service-port', type=int, default=8070)
+    parser.add_argument('--stats-service-host', type=str, default='localhost')
+    parser.add_argument('--stats-service-port', type=int, default=8040)
     parser.add_argument('--valid-error-level', type=int, default=10)
     parser.add_argument('--wait-before-retry', type=int, default=10)
     parser.add_argument('--oidc-host', type=str, default='localhost')
     parser.add_argument('--oidc-port', type=int, default=8030)
     parser.add_argument('--oidc-client-id', type=str, default='ticket-service')
     parser.add_argument('--oidc-client-secret', type=str, required=True)
+    parser.add_argument('--kafka-host', type=str, default='localhost')
+    parser.add_argument('--kafka-port', type=str, default=29092)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--no-authorization', action='store_true')
 
@@ -315,6 +347,8 @@ if __name__ == '__main__':
         cmd_args.ticket_service_port,
         cmd_args.bonus_service_host,
         cmd_args.bonus_service_port,
+        cmd_args.stats_service_host,
+        cmd_args.stats_service_port,
         cmd_args.valid_error_level,
         cmd_args.wait_before_retry,
         cmd_args.oidc_host,
@@ -323,6 +357,7 @@ if __name__ == '__main__':
         cmd_args.oidc_client_secret,
         'admin',
         'admin',
+        KafkaProducer(bootstrap_servers=f'{cmd_args.kafka_host}:{cmd_args.kafka_port}'),
         not cmd_args.no_authorization
     )
 

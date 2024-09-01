@@ -35,7 +35,7 @@
                 "--db-password", "program_password",
                 "--db", "tickets",
                 "--debug",
-                "--oidc-client-secret", "toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8"
+                "--oidc-client-secret", "4FGDQ97yQ4F7UPdIJ5JraRzCjSjVuWUH"
             ],
             "justMyCode": false,
             "consoleTitle": "Ticket service"
@@ -53,10 +53,27 @@
                 "--db-password", "program_password",
                 "--db", "privileges",
                 "--debug",
-                "--oidc-client-secret", "toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8"
+                "--oidc-client-secret", "4FGDQ97yQ4F7UPdIJ5JraRzCjSjVuWUH"
             ],
             "justMyCode": false,
             "consoleTitle": "Bonus service"
+        },
+        {
+            "name": "stats service",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/python/services",
+            "program": "stats.py",
+            "console": "integratedTerminal",
+            "args":
+            [
+                "--db-user", "program",
+                "--db-password", "program_password",
+                "--db", "stats",
+                "--debug"
+            ],
+            "justMyCode": false,
+            "consoleTitle": "Stats service"
         },
         {
             "name": "gateway",
@@ -67,8 +84,7 @@
             "justMyCode": false,
             "args":
             [
-                "--debug",
-                "--oidc-client-secret", "toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8"
+                "--oidc-client-secret", "4FGDQ97yQ4F7UPdIJ5JraRzCjSjVuWUH"
             ],
             "consoleTitle": "Gateway"
         },
@@ -81,8 +97,8 @@
             "justMyCode": false,
             "args":
             [
-                "--user", "user",
-                "--password", "user"
+                "--user", "admin",
+                "--password", "admin"
             ],
             "consoleTitle": "Client"
         }
@@ -91,7 +107,7 @@
     [
         {
             "name": "run service",
-            "configurations": ["gateway", "flight service", "ticket service", "bonus service"],
+            "configurations": ["gateway", "flight service", "ticket service", "bonus service", "stats service", "client"],
             "stopAll": true
         }
     ]

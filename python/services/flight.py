@@ -13,6 +13,7 @@ from flask import make_response
 
 import argparse
 
+from kafka import KafkaProducer
 
 class FlightDbConnector(DbConnectorBase):
     def __init__(self, host, port, database, user, password, sslmode='disable'):
@@ -93,14 +94,14 @@ class FlightDbConnector(DbConnectorBase):
 
 
 class FlightService(ServiceBase):
-    def __init__(self, host, port, db_connector):
-        super().__init__('FlightService', host, port, db_connector)
+    def __init__(self, host, port, db_connector, kafka_producer):
+        super().__init__('FlightService', host, port, db_connector, kafka_producer)
 
     # API requests handlers
     ####################################################################################################################
 
     @ServiceBase.route('/api/v1/flights', ['GET'])
-    def _api_v1_flight(self):
+    def _api_v1_flights(self):
         method = request.method
 
         if method == 'GET':
@@ -133,7 +134,7 @@ class FlightService(ServiceBase):
         assert False, 'Invalid request method'
 
     @ServiceBase.route('/api/v1/flights/<string:number>', ['GET'])
-    def _api_v1_flight_aNumber(self, number):
+    def _api_v1_flights_aNumber(self, number):
         method = request.method
 
         if method == 'GET':
@@ -159,8 +160,8 @@ class FlightService(ServiceBase):
     ####################################################################################################################
 
     def _register_routes(self):
-        self._register_route('_api_v1_flight')
-        self._register_route('_api_v1_flight_aNumber')
+        self._register_route('_api_v1_flights')
+        self._register_route('_api_v1_flights_aNumber')
 
 
 if __name__ == '__main__':
@@ -175,6 +176,8 @@ if __name__ == '__main__':
     parser.add_argument('--db-user', type=str, required=True)
     parser.add_argument('--db-password', type=str, required=True)
     parser.add_argument('--db-sslmode', type=str, default='disable')
+    parser.add_argument('--kafka-host', type=str, default='localhost')
+    parser.add_argument('--kafka-port', type=str, default=29092)
     parser.add_argument('--debug', action='store_true')
 
     cmd_args = parser.parse_args()
@@ -194,7 +197,8 @@ if __name__ == '__main__':
             cmd_args.db_user,
             cmd_args.db_password,
             cmd_args.db_sslmode
-        )
+        ),
+        KafkaProducer(bootstrap_servers=f'{cmd_args.kafka_host}:{cmd_args.kafka_port}')
     )
 
     service.run(cmd_args.debug)

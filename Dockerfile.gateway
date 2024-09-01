@@ -16,11 +16,15 @@ ENV TICKET_SERVICE_HOST localhost
 ENV TICKET_SERVICE_PORT 8070
 ENV BONUS_SERVICE_HOST localhost
 ENV BONUS_SERVICE_PORT 8050
+ENV STATS_SERVICE_HOST localhost
+ENV STATS_SERVICE_PORT 8040
 ENV VALID_ERROR_LEVEL 10
 ENV WAIT_BEFORE_RETRY 19
 ENV OIDC_HOST localhost
 ENV OIDC_PORT 8030
 ENV OIDC_CLIENT_ID ticket-service
+ENV KAFKA_HOST localhost
+ENV KAFKA_PORT 29092
 
 CMD [ \
     "sh", "-c", \
@@ -33,10 +37,14 @@ CMD [ \
         --ticket-service-port $TICKET_SERVICE_PORT \
         --bonus-service-host $BONUS_SERVICE_HOST \
         --bonus-service-port $BONUS_SERVICE_PORT \
+        --stats-service-host $STATS_SERVICE_HOST \
+        --stats-service-port $STATS_SERVICE_PORT \
         --valid-error-level $VALID_ERROR_LEVEL \
         --wait-before-retry $WAIT_BEFORE_RETRY \
         --oidc-host $OIDC_HOST \
         --oidc-port $OIDC_PORT \
         --oidc-client-id $OIDC_CLIENT_ID \ 
-        --oidc-client-secret $OIDC_CLIENT_SECRET" \
+        --oidc-client-secret $OIDC_CLIENT_SECRET \
+        --kafka-host $KAFKA_HOST \
+        --kafka-port $KAFKA_PORT" \
 ]

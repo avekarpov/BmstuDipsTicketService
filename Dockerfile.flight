@@ -1,13 +1,5 @@
 FROM python
 
-ENV SERVICE_HOST localhost
-ENV SERVICE_PORT 8060
-ENV DB_HOST localhost
-ENV DB_PORT 5432
-ENV DB flights
-ENV DB_USER program
-ENV DB_PASSWORD program_password
-
 WORKDIR /app
 
 COPY python/requirements.txt python/requirements.txt
@@ -16,4 +8,26 @@ RUN pip install --no-cache-dir -r python/requirements.txt
 
 COPY python/services/ python/
 
-CMD [ "sh", "-c", "python python/flight.py --host $SERVICE_HOST --port $SERVICE_PORT --db-host $DB_HOST --db-port $DB_PORT --db $DB --db-user $DB_USER --db-password $DB_PASSWORD" ]
+ENV SERVICE_HOST localhost
+ENV SERVICE_PORT 8060
+ENV DB_HOST localhost
+ENV DB_PORT 5432
+ENV DB flights
+ENV DB_USER program
+ENV DB_PASSWORD program_password
+ENV KAFKA_HOST localhost
+ENV KAFKA_PORT 29092
+
+CMD [ \
+    "sh", "-c", \
+    "python python/flight.py \
+        --host $SERVICE_HOST \
+        --port $SERVICE_PORT \
+        --db-host $DB_HOST \
+        --db-port $DB_PORT \
+        --db $DB \
+        --db-user $DB_USER \
+        --db-password $DB_PASSWORD \
+        --kafka-host $KAFKA_HOST \
+        --kafka-port $KAFKA_PORT" \
+]

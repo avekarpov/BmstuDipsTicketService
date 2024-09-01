@@ -61,3 +61,16 @@ CREATE TABLE privilege_history
 
 CREATE DATABASE keycloak;
 \c keycloak;
+
+CREATE DATABASE stats;
+\c stats;
+
+CREATE TABLE stat
+(
+    id      SERIAL PRIMARY KEY,
+    service VARCHAR(80) NOT NULL,
+    path    VARCHAR(80) NOT NULL,
+    method  VARCHAR(80) NOT NULL CHECK (method IN ('GET', 'POST', 'DELETE')),
+    count   INT         NOT NULL DEFAULT 0,
+    UNIQUE(service, method, path)
+)

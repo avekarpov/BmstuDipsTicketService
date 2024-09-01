@@ -1,5 +1,6 @@
 from flask import Flask
 from flask import make_response
+from flask import request
 
 import logging
 
@@ -13,6 +14,8 @@ import time
 
 from keycloak import KeycloakOpenID
 from keycloak.keycloak_openid import jwt
+
+from kafka import KafkaProducer
 
 class DbConnectorBase:
     def __init__(self, name, host, port, database, user, password, sslmode):
@@ -45,12 +48,13 @@ class DbConnectorBase:
 
 
 class ServiceBase:
-    def __init__(self, name, host, port, db_connector:DbConnectorBase=None):
+    def __init__(self, name, host, port, db_connector:DbConnectorBase=None, kafka_producer:KafkaProducer=None):
         self._service_name = name
 
         self._host = host
         self._port = port
         self._db_connector = db_connector
+        self._kafka_producer = kafka_producer
 
         self._flask_app = Flask(f'{self._service_name} flask')
 
@@ -65,7 +69,7 @@ class ServiceBase:
         try:
             self._logger.info(f'Run flask app: host: {self._host}, port: {self._port}, debug: {debug}')
 
-            self._flask_app.run(self._host, self._port, debug=debug)
+            self._flask_app.run(self._host, self._port, debug=debug, use_reloader=False)
 
             self._logger.info(f'End flask app run')
 
@@ -121,6 +125,20 @@ class ServiceBase:
                 self._logger.debug(f'Call handler for path: {path}')
 
                 try:
+                    method = request.method
+                    
+                    if self._kafka_producer is not None:
+                        payload = f'{method} {path}'.encode('utf-8')
+                        
+                        self._logger.debug(f'Send {payload} to {self._service_name} topic')
+                        
+                        self._kafka_producer.send(
+                            self._service_name,
+                            value=payload,
+                            partition=0
+                        )
+                        # self._kafka_producer.flush()
+                    
                     return func(self=self, *args, **kwargs)
 
                 except UserError as error:

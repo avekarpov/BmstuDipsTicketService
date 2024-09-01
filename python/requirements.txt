@@ -1,6 +1,7 @@
 flask
-argparse
+argparse 
 psycopg2-binary
 requests
 python-keycloak
 tabulate
+kafka-python-ng

@@ -23,7 +23,7 @@ class Client:
 
         self._check_ok(response)
 
-        return 'Healthed'
+        return 'healthed'
 
     def authorize(self):
         response = requests.request(
@@ -61,6 +61,30 @@ class Client:
         self._check_ok(response)
 
         return 'registered'
+
+    def stats(self):
+        response = requests.request(
+            'GET',
+            self._build_enpoint('stats'),
+            headers=self._authorization_header()
+        )
+
+        self._check_ok(response)
+        self._check_json(response)
+        
+        headers = [
+            'endpoint',
+            'количестко запросов'
+        ]
+        data = [
+            [
+                i['endpoint'],
+                i['count']
+            ]
+            for i in response.json()
+        ]
+        
+        return f'{tabulate(data, headers, "heavy_outline")}\n'
 
     def flights(self, page, size=50):
         response = requests.request(
@@ -390,7 +414,23 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=8080)
     parser.add_argument('--user', type=str, required=True)
     parser.add_argument('--password', type=str, required=True)
-    parser.add_argument('action', type=str, nargs='?')
+    
+    action_help = \
+        '/h                                    print this commands help\n' \
+        '/q                                    quit\n' \
+        '/health                               check service helath\n' \
+        '/flights [PAGE]                       flights info\n' \
+        '/flight FLIGHT_NUMBER                 flight info\n' \
+        '/tickets                              user tickets info\n' \
+        '/ticket                               user ticket info\n' \
+        '/buy FLIGHT_NUMBER PAID_FROM_BALANCE  buy ticket\n' \
+        '/return FLIGHT_NUMBER                 return ticket\n' \
+        '/me                                   all user info\n' \
+        '/bonus                                bonus user info\n' \
+        '/register                             register user (admin only)\n' \
+        '/stats                                show stats (admin only)\n'
+    
+    parser.add_argument('action', type=str, nargs='?', help=action_help)
 
     cmd_args = parser.parse_args()
 
@@ -411,14 +451,17 @@ if __name__ == '__main__':
         exit(-1)
 
     if action is None:
-        action = input()
+        action = input('enter command: ')
 
     while True:
         try:
             action = action.split()
             
             if len(action) != 0:
-                if action[0] == '/q':
+                if (action[0] == '/h'):
+                    response = action_help
+  
+                elif action[0] == '/q':
                     break
 
                 elif action[0] == '/health':
@@ -469,6 +512,9 @@ if __name__ == '__main__':
                     
                     response = client.register(action[1], action[2])
 
+                elif action[0] == '/stats':
+                    response = client.stats()
+
                 else:
                     response = 'unknown operation'
 
@@ -480,4 +526,4 @@ if __name__ == '__main__':
         if once:
             break
 
-        action = input()
+        action = input('enter command: ')

@@ -33,10 +33,16 @@ services:
 
             BONUS_SERVICE_HOST: bonus_service
             BONUS_SERVICE_PORT: 8050
-        
+
+            STATS_SERVICE_HOST: stats_service
+            STATS_SERVICE_PORT: 8040
+
             OIDC_HOST: keycloak
             OIDC_PORT: 8030
-            OIDC_CLIENT_SECRET: toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8
+            OIDC_CLIENT_SECRET: 4FGDQ97yQ4F7UPdIJ5JraRzCjSjVuWUH
+
+            KAFKA_HOST: kafka
+            KAFKA_PORT: 29092
         ports:
             - 8080:8080
         networks:
@@ -52,8 +58,13 @@ services:
             SERVICE_PORT: 8060
 
             DB_HOST: postgres
+
+            KAFKA_HOST: kafka
+            KAFKA_PORT: 29092
         depends_on:
             - postgres
+            - kafka
+            - keycloak
         ports:
             - 8060:8060
         networks:
@@ -78,9 +89,14 @@ services:
 
             OIDC_HOST: keycloak
             OIDC_PORT: 8030
-            OIDC_CLIENT_SECRET: toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8
+            OIDC_CLIENT_SECRET: 4FGDQ97yQ4F7UPdIJ5JraRzCjSjVuWUH
+
+            KAFKA_HOST: kafka
+            KAFKA_PORT: 29092
         depends_on:
             - postgres
+            - kafka
+            - keycloak
         ports:
             - 8070:8070
         networks:
@@ -99,14 +115,40 @@ services:
 
             OIDC_HOST: keycloak
             OIDC_PORT: 8030
-            OIDC_CLIENT_SECRET: toCVmF8WwCQM1YvJtSYfDgAiKSSzeVf8
+            OIDC_CLIENT_SECRET: 4FGDQ97yQ4F7UPdIJ5JraRzCjSjVuWUH
+
+            KAFKA_HOST: kafka
+            KAFKA_PORT: 29092
         depends_on:
             - postgres
+            - kafka
+            - keycloak
         ports:
             - 8050:8050
         networks:
             - internal
-    
+
+    stats:
+        build:
+            dockerfile: Dockerfile.stats
+        container_name: stats_service    
+        restart: always
+        environment:
+            SERVICE_HOST: stats_service
+            SERVICE_PORT: 8040
+
+            DB_HOST: postgres
+
+            KAFKA_HOST: kafka
+            KAFKA_PORT: 29092
+        depends_on:
+            - postgres
+            - kafka
+        ports:
+            - 8040:8040
+        networks:
+            - internal
+
     keycloak:
         image: quay.io/keycloak/keycloak
         container_name: keycloak
@@ -130,6 +172,38 @@ services:
             - postgres
         ports:
             - 8030:8030
+        networks:
+            - internal
+
+    zookeeper:
+        image: confluentinc/cp-zookeeper:7.3.2
+        container_name: zookeeper
+        environment:
+            ZOOKEEPER_CLIENT_PORT: 22181
+            ZOOKEEPER_TICK_TIME: 2000
+        ports:
+            - 22181:22181
+        networks:
+            - internal
+
+    kafka:
+        image: confluentinc/cp-kafka:7.3.2
+        container_name: kafka
+        environment:
+            KAFKA_BROKER_ID: 1
+            KAFKA_ZOOKEEPER_CONNECT: zookeeper:22181
+
+            KAFKA_LISTENERS: LISTENER_BOB://kafka:29092,LISTENER_FRED://localhost:9092
+            KAFKA_ADVERTISED_LISTENERS: LISTENER_BOB://kafka:29092,LISTENER_FRED://localhost:9092
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_BOB:PLAINTEXT,LISTENER_FRED:PLAINTEXT
+            KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_BOB
+
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+            KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+        depends_on:
+            - zookeeper
+        ports:
+            - 29092:29092
         networks:
             - internal
 

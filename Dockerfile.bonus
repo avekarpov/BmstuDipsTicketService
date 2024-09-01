@@ -18,6 +18,8 @@ ENV DB_PASSWORD program_password
 ENV OIDC_HOST localhost
 ENV OIDC_PORT 8030
 ENV OIDC_CLIENT_ID ticket-service
+ENV KAFKA_HOST localhost
+ENV KAFKA_PORT 29092
 
 CMD [ \
     "sh", "-c", \
@@ -32,5 +34,7 @@ CMD [ \
         --oidc-host $OIDC_HOST \
         --oidc-port $OIDC_PORT \
         --oidc-client-id $OIDC_CLIENT_ID \ 
-        --oidc-client-secret $OIDC_CLIENT_SECRET" \
+        --oidc-client-secret $OIDC_CLIENT_SECRET \
+        --kafka-host $KAFKA_HOST \
+        --kafka-port $KAFKA_PORT" \
     ]
