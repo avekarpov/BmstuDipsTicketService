@@ -98,8 +98,7 @@ class StatsService(ServiceBase):
 
                 self._db_connector.tick(service, method, path)
             except Exception as error:
-                # TODO: log error
-                pass
+                self._logger.error(f'Failed to parse message: {error}')
 
         self._logger.info('End kafka consumer job')
 

@@ -88,10 +88,14 @@ data:
     GRANT ALL PRIVILEGES ON SEQUENCE privilege_history_id_seq TO program;
 
     CREATE DATABASE keycloak;
-    \c keycloak;
+    GRANT ALL PRIVILEGES ON DATABASE keycloak TO program;
+
+    \c keycloak
     
     CREATE DATABASE stats;
-    \c stats;
+    GRANT ALL PRIVILEGES ON DATABASE stats TO program;
+
+    \c stats
     
     CREATE TABLE stat
     (
@@ -101,4 +105,7 @@ data:
         method  VARCHAR(80) NOT NULL CHECK (method IN ('GET', 'POST', 'DELETE')),
         count   INT         NOT NULL DEFAULT 0,
         UNIQUE(service, method, path)
-    )
+    );
+
+    GRANT ALL PRIVILEGES ON TABLE stat TO program;
+    GRANT ALL PRIVILEGES ON SEQUENCE stat_id_seq TO program;
