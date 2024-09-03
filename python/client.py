@@ -422,12 +422,12 @@ if __name__ == '__main__':
         '/flights [PAGE]                       flights info\n' \
         '/flight FLIGHT_NUMBER                 flight info\n' \
         '/tickets                              user tickets info\n' \
-        '/ticket                               user ticket info\n' \
+        '/ticket TICKER_NUMBER                 user ticket info\n' \
         '/buy FLIGHT_NUMBER PAID_FROM_BALANCE  buy ticket\n' \
-        '/return FLIGHT_NUMBER                 return ticket\n' \
+        '/return TICKER_NUMBER                 return ticket\n' \
         '/me                                   all user info\n' \
         '/bonus                                bonus user info\n' \
-        '/register                             register user (admin only)\n' \
+        '/register NAME PASSWORD               register user (admin only)\n' \
         '/stats                                show stats (admin only)\n'
     
     parser.add_argument('action', type=str, nargs='?', help=action_help)
