@@ -99,6 +99,20 @@ class TicketDbConnector(DbConnectorBase):
         self._connection.commit()
 
 
+    def get_flight_tickets_count(self, flight_number):
+        query = tools.simplify_sql_query(
+            f'SELECT COUNT(1) FROM ticket WHERE flight_number = \'{flight_number}\' and status = \'PAID\''
+        )
+        
+        self._logger.debug(f'Execute query: {query}')
+        cursor = self._connection.cursor()
+        cursor.execute(query)
+
+        row = cursor.fetchone()
+        cursor.close()
+        
+        return row[0]
+
 class TicketService(ServerBaseWithKeycloak):
     def __init__(
         self, 
@@ -174,6 +188,11 @@ class TicketService(ServerBaseWithKeycloak):
                 price = UserValue.get_from(body, 'price', error_chain).expected(int).rule(rules.grater_zero).value
                 paid_from_balance = UserValue.get_from(body, 'paidFromBalance', error_chain).expected(bool).value
  
+            count = self._db_connector.get_flight_tickets_count(flight_number)
+
+            if count >= 3:
+                raise errors.UserError('flight is full', 409)
+
             flight = self._get_json_from(
                 requests.request(
                     'GET', 
